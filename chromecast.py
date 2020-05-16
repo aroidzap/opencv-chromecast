@@ -69,6 +69,7 @@ class Chromecast(ImageStreamer):
         self.chromecast_ip = chromecast_ip
 
     def __enter__(self):
+        super().__enter__()
         # connect to chromecast
         self._chromecast = pychromecast.Chromecast(self.chromecast_ip)
         self._chromecast.wait()
