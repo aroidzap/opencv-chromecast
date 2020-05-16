@@ -1,4 +1,0 @@
-[submodule "pychromecast"]
-	path = pychromecast
-	url = https://github.com/balloob/pychromecast.git
-	branch = master
