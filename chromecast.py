@@ -42,46 +42,73 @@ class ImageStreamer:
         self._server._custom_run = False
         self._server._custom_media = None
 
-    def __enter__(self):     
-        # start server   
-        self._server._custom_run = True
-        self._server._custom_media = None
-        self._server_thread = threading.Thread(target=self._server.serve_forever)
-        self._server_thread.start()
-        # print info
-        if self.verbose:
-            print("streaming at: http://{}:{}/video".format(*self._server.server_address))    
-        return self
-    
-    def __exit__(self, ext_type, exc_value, traceback):
+    def connect(self):
+        # start server
+        if not self._server._custom_run:
+            self._server._custom_run = True
+            self._server._custom_media = None
+            self._server_thread = threading.Thread(target=self._server.serve_forever)
+            self._server_thread.start()
+            # print info
+            if self.verbose:
+                print("streaming at: http://{}:{}/video".format(*self._server.server_address))    
+
+    def disconnect(self):
         # close server
-        self._server._custom_run = False
-        self._server.shutdown()
-        self._server.server_close()
-        self._server_thread.join()
+        if self._server._custom_run:
+            self._server._custom_run = False
+            self._server.shutdown()
+            self._server.server_close()
+            self._server_thread.join()
 
     def imshow(self, image):
         self._server._custom_media = image
+
+    def __enter__(self):
+        self.connect()
+        return self
+    
+    def __exit__(self, ext_type, exc_value, traceback):
+        self.disconnect()
+
+    def __del__(self):
+        self.disconnect()
 
 class Chromecast(ImageStreamer):
     def __init__(self, chromecast_ip, media_server_port = 8080, verbose = False):
         super().__init__(server_port=media_server_port, verbose=verbose)
         self.chromecast_ip = chromecast_ip
+        self._casting = False
+
+    def connect(self):
+        if not self._casting:
+            self._casting = True
+            # connect media server
+            super().connect()
+            # connect to chromecast
+            self._chromecast = pychromecast.Chromecast(self.chromecast_ip)
+            self._chromecast.wait()
+            # connect to stream
+            self._chromecast.media_controller.play_media(
+                "http://{}:{}/video".format(*self._server.server_address), "image/jpeg")
+
+    def disconnect(self):
+        if self._casting:
+            self._casting = False
+            # close chromecast app
+            self._chromecast.quit_app()
+            # close media server
+            super().disconnect()
 
     def __enter__(self):
-        super().__enter__()
-        # connect to chromecast
-        self._chromecast = pychromecast.Chromecast(self.chromecast_ip)
-        self._chromecast.wait()
-        # connect to stream
-        self._chromecast.media_controller.play_media(
-            "http://{}:{}/video".format(*self._server.server_address), "image/jpeg")
+        self.connect()
         return self
-
+    
     def __exit__(self, ext_type, exc_value, traceback):
-        # close chromecast app
-        self._chromecast.quit_app()
-        super().__exit__(ext_type, exc_value, traceback)
+        self.disconnect()
+
+    def __del__(self):
+        self.disconnect()
 
 if __name__ == "__main__":
     import numpy as np
