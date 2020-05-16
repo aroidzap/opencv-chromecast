@@ -86,11 +86,11 @@ class Chromecast(ImageStreamer):
 if __name__ == "__main__":
     import numpy as np
 
-    with Chromecast("10.0.0.82") as cc:
-        while True:
-            try:
-                cc.imshow(
-                    (255 * np.random.rand(256, 256, 3)).astype(np.uint8)
-                )
-            except KeyboardInterrupt:
-                break
+    try:
+        with Chromecast("10.0.0.82") as cc:
+            print("running")
+            while True:   
+                image = (255 * np.random.rand(256, 256, 3)).astype(np.uint8)
+                cc.imshow(image)
+    except KeyboardInterrupt:
+        print("stopped")
